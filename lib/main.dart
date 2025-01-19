@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 void main() {
   runApp(MyApp());
@@ -124,7 +125,7 @@ class ExamScheduleScreenState extends State<ExamScheduleScreen> {
     }
   }
 
-  Widget _buildEventList() {
+  Widget buildEventList() {
     final events = _events[_selectedDay];
     if (events == null || events.isEmpty) {
       return Padding(
@@ -141,6 +142,33 @@ class ExamScheduleScreenState extends State<ExamScheduleScreen> {
         );
       },
     );
+  }
+
+  Widget _buildAllEventsList() {
+    List<Widget> allEvents = [];
+
+    _events.forEach((date, events) {
+      for (var event in events) {
+        allEvents.add(
+          ListTile(
+            leading: Icon(Icons.event),
+            title: Text(event),
+            subtitle: Text(
+              '${date.toLocal()}'.split(' ')[0],
+            ),
+          ),
+        );
+      }
+    });
+
+    if (allEvents.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text('No exams scheduled.'),
+      );
+    }
+
+    return Column(children: allEvents);
   }
 
   @override
@@ -193,13 +221,71 @@ class ExamScheduleScreenState extends State<ExamScheduleScreen> {
                     },
                     child: Text('Add Exam'),
                   ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MapScreen(events: _events),
+                        ),
+                      );
+                    },
+                    child: Text('Show Events on Map'),
+                  ),
                 ],
               ),
             ),
             SizedBox(height: 20),
-            _buildEventList(),
+            Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                'All Scheduled Exams:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+            _buildAllEventsList(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class MapScreen extends StatelessWidget {
+  final Map<DateTime, List<String>> events;
+
+  const MapScreen({required this.events, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    Set<Marker> markers = {};
+
+    events.forEach((date, eventList) {
+      for (var event in eventList) {
+        final location = event.split('Location: ').last;
+
+        markers.add(
+          Marker(
+            markerId: MarkerId(location),
+            position: LatLng(42.0, 21.0),
+            infoWindow: InfoWindow(title: event),
+          ),
+        );
+      }
+    });
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Exam Locations Map'),
+      ),
+      body: GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: LatLng(42.0, 21.0),
+          zoom: 12,
+        ),
+        markers: markers,
       ),
     );
   }
